@@ -1,0 +1,212 @@
+---
+title: "USA SHOOTINGS"
+output: html_notebook
+---
+Details about this project can be found in the readme file 
+```{r}
+getwd()
+```
+
+#### **import the required libraries** 
+```{r}
+library(dplyr)
+library(tidyr)
+library(readr)
+library(ggplot2)
+library(lubridate)
+library(lattice)
+
+print("Setup Complete!")
+```
+
+#### **Import the Data-set**
+```{r}
+filepath <- "F:/Data Science/My Datasets/USA_shootings.csv"
+shootings <- read.csv(filepath)
+print("Import Successful")
+```
+
+# **EXPLORATORY DATA ANALYSIS**
+```{r}
+head(shootings)
+```
+
+``````{r}
+dim(shootings)
+```
+
+* There are 4895 victims and 10 observations surrounding their death
+
+#### **Addition of the Age group column** 
+```{r}
+shootings <- shootings%>% mutate(Age_group = case_when(age > 0 & age <= 12 ~ "Child",
+                                                                 age >= 13 & age <= 19 ~ "Teenager",
+                                                                 age >= 20 & age <= 40 ~ "Young Adult",
+                                                                 age >= 41 & age <= 65 ~ "Adult",
+                                                                 age > 65 ~ "Senior"))
+```
+
+Now lets check if the column has been added 
+```{r}
+head(shootings)
+```
+Tadaaaaa>>>>
+
+#### **Conversion of columns to appropriate classes**
+```{r}
+shootings$manner_of_death <- as.factor(shootings$manner_of_death)
+shootings$armed <- as.factor(shootings$armed)
+shootings$date <- ymd(shootings$date)
+shootings$gender <- as.factor(shootings$gender)
+shootings$race <- as.factor(shootings$race)
+shootings$city <- as.factor(shootings$city)
+shootings$state <- as.factor(shootings$state)
+shootings$signs_of_mental_illness <- as.factor(shootings$signs_of_mental_illness)
+shootings$threat_level <- as.factor(shootings$threat_level)
+shootings$flee <- as.factor(shootings$flee)
+shootings$body_camera <- as.factor(shootings$body_camera)
+shootings$arms_category <- as.factor(shootings$arms_category)
+```
+
+Lets check if the classes of the columns have been changed 
+```{r}
+head(shootings)
+```
+## **Manner Of Death**
+```{r}
+mann.tbl <- shootings %>% group_by(manner_of_death) %>% summarize(`Death Toll` = n())
+mann.tbl <- rename(mann.tbl, "Manner of Death" = "manner_of_death")
+mann.tbl
+```
+* As seen above, only few of the victims were shot and tasered 
+
+```{r}
+g <- ggplot(mann.tbl, aes(x = `Manner of Death`, y = `Death Toll`))
+g + geom_bar(stat = "identity") + ggtitle("DEATH TOLL BY MANNER OF DEATH") + theme_classic()
+```
+* The chart above clearly shows the wide difference between individuals that were only shot and individuals that were shot and tasered 
+
+
+## **Armed** 
+```{r}
+armed_grp <- table(shootings$armed)
+armed_grp <- as.data.frame(armed_grp)
+armed_grp <- rename(armed_grp, "Weapons" = "Var1", "Victims Count" = "Freq")
+#new_column_name = old_column_name
+armed_grp <- armed_grp %>% arrange(desc(`Victims Count`)) %>% mutate(Percentage = (`Victims Count`/4895) * 100)
+armed_grp$Percentage <- round(armed_grp$Percentage, digits = 1)
+armed_grp
+```
+* As seen above most of the victims were armed with Guns (56%) and Knives (14.1%). The victims might have tried to shoot at or stab the police officer before being shot dead
+
+Lets move further to uncover more insights 
+
+```{r}
+guns <- subset(shootings, armed == "gun")
+gun.grp <- guns%>% select(race) %>% group_by(race) %>% summarize(`Owned Gun` = n()) %>% arrange(desc(`Owned Gun`))
+print(gun.grp)
+```
+* More white victims owned guns more than any other race in this data set
+
+## **Gender and Race**
+```{r}
+gr_grp <- shootings %>% select(race, gender) %>% group_by(race, gender) %>% summarize(`Victim Counts` = n())
+
+gr_grp
+```
+
+```{r}
+g <- ggplot(gr_grp, aes(x = race, y = `Victim Counts`))
+g + geom_bar(aes(fill = gender), stat = "identity", position = position_dodge()) + xlab("RACE") + ylab("DEATH TOLL") + ggtitle("DEATH TOLL BY RACE AND GENDER") + scale_fill_manual(values = c("green", "navy blue")) + theme_light()
+```
+
+* It ia evident that police shot more white men and women than any other race as opposed to popular belief that blacks have been the more victims.
+
+Lets dive deeper 
+
+## **City**
+```{r}
+city.grp <- shootings %>% select(city) %>% group_by(city) %>% summarize(`Death Toll` = n()) %>% arrange(desc(`Death Toll`)) %>% mutate(Percentage = (`Death Toll`/4895) *100)
+
+city.grp$Percentage <- round(city.grp$Percentage, digits = 1)
+city.grp
+```
+* The top three cities where victims were killed are Los Angeles, Phoenix and Houston. There are 2288 cities in the data-set 
+
+## **State**
+```{r}
+states_grp <- shootings %>% select(state) %>% group_by(state) %>% summarize(`Death Toll` = n()) %>% arrange(desc(`Death Toll`)) %>% mutate(Percentage = (`Death Toll`/4895) * 100)
+states_grp$Percentage <- round(states_grp$Percentage, digits = 1)
+
+states_grp
+```
+*  As seen above the top three states with the highest Death toll are California, Texas and Florida 
+
+## **Mental Status**
+```{r}
+mental.illness <-table(shootings$signs_of_mental_illness)
+mental.illness
+```
+
+* Most of the victims didn't show signs mental illnesses 
+
+```{r}
+ment <- data.frame(`Mental status` = c("No mental Illness", "Has mental illness"), `Death toll` = c(3792, 1103))
+ment
+```
+
+```{r}
+g <- ggplot(ment, aes(x = "", y = Death.toll, fill = Mental.status))
+bar <- g + geom_bar(stat = "identity")
+bar + coord_polar("y", start = 0) + scale_fill_manual(values = c("red", "green")) +ggtitle("CHART SHOWING THE DEATH TOLL BY MENTAL STATUS \n OF THE VICTIMS")
+```
+
+## **Threat level**
+```{r}
+threat <- shootings %>% select(threat_level, race) %>%group_by(race,threat_level) %>%  summarize(Death.toll = n()) %>% arrange(desc(Death.toll)) 
+threat <- rename(threat, "Threat level" = "threat_level")
+threat
+```
+* Majority of the victims were a potential threat to the police hence they were shot
+
+Lets see how the death toll by threat level regarding race in a chart below 
+```{r}
+g <- ggplot(threat, aes(x = race, y = Death.toll, fill = `Threat level`))
+g + geom_bar(stat = "identity", position = position_dodge()) + scale_fill_manual(values = c("navy blue", "green", "red")) + ggtitle("DEATH TOLL BY RACE AND THREAT LEVEL") + theme_bw()
+```
+* The white race leads in all categories 
+
+## **Was the Victim Fleeing**
+```{r}
+flee <- shootings %>% select(flee) %>% group_by(flee) %>% summarize(`Death toll` = n()) %>% arrange(desc(`Death toll`))
+flee <- rename(flee, "Fleeing status" = "flee")
+flee
+```
+* Most of the victims were not fleeing 
+
+## **Was the incident recorded on body camera**
+```{r}
+camera <- shootings %>% select(body_camera) %>% group_by(body_camera) %>% summarize(`Death toll` = n()) %>% arrange(desc(`Death toll`))
+camera
+```
+
+* Most of the incidents were not recorded on body camera 
+
+## **Arms Category**
+```{r}
+arms <- shootings %>% select(arms_category, armed) %>% group_by(arms_category, armed) %>% summarize(`Death toll` = n()) %>% arrange(desc(`Death toll`))
+arms <- rename(arms, "Weapon"= "armed")
+arms
+```
+
+
+```{r}
+age_group <- shootings %>% select(Age_group, race, gender) %>% group_by(Age_group, gender, race) %>% summarize(`Death toll` = n())
+age_group
+```
+
+```{r}
+g <- ggplot(age_group, aes(x = gender, y = `Death toll`, fill = Age_group))
+g + geom_bar(stat = "identity", position = position_stack()) + facet_grid(. ~ race)
+```
+* As seen above, most of the victims were male young adults between the ages of 18 and 35 followed by male adults between the ages of 36 and 65
